@@ -45,6 +45,7 @@ let vertexShader = `
 
 	// varying vec2 v_normal;
 	varying vec2 v_texcoord;
+	varying float v_dist;
 
 	void main() {
 		// v_normal = a_normal;
@@ -52,6 +53,7 @@ let vertexShader = `
 		v_texcoord = (u_textureTransform*vec4(a_pos, 1.0)).xy;
 		// v_texcoord = a_pos.xy;
 		vec4 pos = u_viewTransform * u_cameraTransform * u_objectTransform * vec4(a_pos, 1.0);
+		v_dist = pos.z / 2.0;
 		gl_Position = pos;
 	}
 `;
@@ -61,6 +63,7 @@ let fragmentShader = `
 	// varying vec2 v_normal;
 	// varying vec3 v_color;
 	varying vec2 v_texcoord;
+	varying float v_dist;
 
 	uniform sampler2D u_tex;
 	uniform vec4 u_color;
@@ -69,7 +72,10 @@ let fragmentShader = `
 		vec4 col = texture2D(u_tex, v_texcoord);
 		// col = vec4(1.0, 0.0, 1.0, 1.0);
 		if (col.a > 0.0) {
-			gl_FragColor = col * u_color;
+			// float fog = 1.0 / (v_dist * 4.0 + 1.0);
+			float fog = 1.0 - v_dist;
+			fog = fog*fog;
+			gl_FragColor = vec4((col * u_color).xyz*fog +vec3(0.2, 0.2, 0.2) * (1.0-fog), 1.0);
 		} else {
 			discard;
 		}
