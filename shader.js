@@ -50,6 +50,7 @@ let vertexShader = `
 		// v_normal = a_normal;
 		// v_texcoord = a_texcoord;
 		v_texcoord = (u_textureTransform*vec4(a_pos, 1.0)).xy;
+		// v_texcoord = a_pos.xy;
 		vec4 pos = u_viewTransform * u_cameraTransform * u_objectTransform * vec4(a_pos, 1.0);
 		gl_Position = pos;
 	}

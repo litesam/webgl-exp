@@ -1,38 +1,24 @@
 let gl;
 
 class Texture {
-	static _allTextures = new Array();
-	
-	constructor(url) {
-		this.url = url;
-		if (gl == null) {
-			Texture._allTextures.push(this);
-		} else {
-			this.load();
-		}
-	}
-
-	static loadAll() {
-		for (let i = 0; i < this._allTextures.length; i++) {
-			this._allTextures[i]._load();
-		}
-		this._allTextures = null;
-	}
-
-	_load = () => {
+	static load = (url) => {
+		let loaded = false;
 		let img = new Image();
-		this.texture = gl.createTexture();
-		img.onload = function(e) {
-			gl.bindTexture(gl.TEXTURE_2D, this.texture);
+		let texture = gl.createTexture();
+		let width, height;
+		img.addEventListener('load', () => {
+			gl.bindTexture(gl.TEXTURE_2D, texture);
 			gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-			// console.log(img);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-			this.width = img.width;
-			this.height = img.height;
-			this.loaded = true;
-		}
-		img.src = this.url;
+			width = img.width;
+			console.log(width);
+			height = img.height;
+			loaded = true;
+		}, false);
+		img.src = url;
+		document.body.appendChild(img);
+		return {texture, width: 256, height: 256, loaded: true, img: img};
 	}
 }
 
@@ -73,6 +59,7 @@ class Quad {
 	setTexture = (texture) => {
 		this.texture = texture;
 		gl.bindTexture(gl.TEXTURE_2D, texture.texture)
+		// console.log(this.texture);
 	}
 
 	setCamera = (viewMatrix, cameraMatrix) => { // Must be a Float32Array or glMatrix.mat4 parameters type
@@ -81,13 +68,12 @@ class Quad {
 	}
 
 	z = 0;
-	render = (x, y, w, h, uo, vo, color) => {
+	render = (pos, w, h, uo, vo, color) => {
 		if (!this.texture.loaded) return;
-
 		this.objectMatrix = glMatrix.mat4.create();
 		this.textureMatrix = glMatrix.mat4.create();
 		// glMatrix.mat4.translate(this.objectMatrix, this.objectMatrix, glMatrix.vec3.clone([0.0, 0.0, -1.0]));
-		glMatrix.mat4.translate(this.objectMatrix, this.objectMatrix, glMatrix.vec3.clone([x * 1.0, y * 1.0, -1.0]));
+		glMatrix.mat4.translate(this.objectMatrix, this.objectMatrix, [pos[0]-w / 2.0, pos[1] - h * 1.0,pos[2] * 0.01]);
 		glMatrix.mat4.scale(this.objectMatrix, this.objectMatrix, glMatrix.vec3.clone([w * 1.0, h * 1.0, 0.0]));
 		gl.uniformMatrix4fv(this.objectTransformLocation, false, this.objectMatrix);
 		
@@ -103,34 +89,47 @@ class Quad {
 }
 
 class Game {
-	
-	sheetTexture = new Texture('tex/sheet.png');
+	fov = 90;
 	start = () => {
-		this.fov = 90.0;
 		this.canvas = document.querySelector('#game_canvas');
 		gl = this.canvas.getContext('webgl');
+		this.sheetTexture = Texture.load('tex/sheet.png');
 		this.quad = new Quad(new Shader(vertexShader, fragmentShader));
-		Texture.loadAll();
+		gl.enable(gl.DEPTH_TEST);
+		gl.depthFunc(gl.LESS);
 		this.render();
 	}
-	x = 0;
-	y = 0;
+
 	render = (time) => {
+		let pixelScale = 2.0;
 		gl.viewport(0, 0, this.canvas.width, this.canvas.height);
 		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
-		// console.log(mat)
-		this.viewMatrix = glMatrix.mat4.create();
-		glMatrix.mat4.perspective(this.viewMatrix, glMatrix.glMatrix.toRadian(this.fov), this.canvas.width / this.canvas.height, 0.01, 100.0);
-		this.cameraMatrix = glMatrix.mat4.create();
-		let scale = 4.0/ this.canvas.height;
-		glMatrix.mat4.scale(this.cameraMatrix, this.cameraMatrix, glMatrix.vec3.clone([scale, -scale, 1.0]));
+
+		let viewMatrix = glMatrix.mat4.create();
+		glMatrix.mat4.perspective(viewMatrix, this.fov * Math.PI / 180, this.canvas.width / this.canvas.height, 0.01, 100.0);
+		let scale = pixelScale * 2.0/ this.canvas.height;
+		let screenMatrix = glMatrix.mat4.create();
+		glMatrix.mat4.scale(screenMatrix, glMatrix.mat4.create(), glMatrix.vec3.clone([scale, -scale, 1.0]));
+		let cameraMatrix = glMatrix.mat4.create();
+		glMatrix.mat4.translate(cameraMatrix, cameraMatrix, [0.0, 32.0, -100.0]);
+		glMatrix.mat4.rotateY(cameraMatrix, cameraMatrix, Date.now()%10000/10000.0 * Math.PI * 2.0);
+		let whiteColor = glMatrix.vec4.clone([1.0, 1.0, 1.0, 1.0]);
+		
+		this.quad.setCamera(viewMatrix, screenMatrix);
 		this.quad.setTexture(this.sheetTexture);
-		this.quad.setCamera(this.viewMatrix, this.cameraMatrix);
-		// this.quad.render(this.x = this.x+2, 0, 16, 16, 0, 0, glMatrix.vec4.clone([1.0, 0.0, 0.0, 1.0]));
-		this.quad.render(0, 0, 24, 95, 8, 8, glMatrix.vec4.clone([1.0, 1.0, 1.0, 1.0]));
+		// this.quad.render(glMatrix.vec3.transformMat4(glMatrix.vec3.create(), glMatrix.vec3.clone([30.0, 0.0, 0.0]), cameraMatrix), 24, 95, 0, 0, whiteColor);
+		this.quad.render(glMatrix.vec3.clone([0.0, 0.0, -100.0]), 32, 32, 0, 0, whiteColor);
+		
+		this.quad.setCamera(viewMatrix, screenMatrix);
+		this.quad.setTexture(this.sheetTexture);
+		this.quad.render(glMatrix.vec3.transformMat4(glMatrix.vec3.create(), glMatrix.vec3.clone([60.0, 0.0, 0.0]), cameraMatrix), 24, 95, 0, 0, whiteColor);
+		this.quad.render(glMatrix.vec3.transformMat4(glMatrix.vec3.create(), glMatrix.vec3.clone([-60.0, 0.0, 0.0]), cameraMatrix), 24, 95, 0, 0, whiteColor);
+		this.quad.render(glMatrix.vec3.transformMat4(glMatrix.vec3.create(), glMatrix.vec3.clone([0.0, 0.0, 60.0]), cameraMatrix), 24, 95, 0, 0, whiteColor);
+		this.quad.render(glMatrix.vec3.transformMat4(glMatrix.vec3.create(), glMatrix.vec3.clone([0.0, 0.0, -60.0]), cameraMatrix), 24, 95, 0, 0, whiteColor);
 		window.requestAnimationFrame(this.render);
 	}
 }
 
-new Game().start();
+let game = new Game();
+game.start();
