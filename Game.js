@@ -16,7 +16,6 @@ class Texture {
 			loaded = true;
 		}, false);
 		img.src = url;
-		document.body.appendChild(img);
 		return {texture, width: 256, height: 256, loaded: true, img: img};
 	}
 }
@@ -117,11 +116,11 @@ class Game {
 		this.quad = new Quad(new Shader(vertexShader, fragmentShader));
 		gl.enable(gl.DEPTH_TEST);
 		gl.depthFunc(gl.LESS);
-		for (let i = 0; i < 100; i++) {
+		for (let i = 0; i < 1000; i++) {
 			// let x = (Math.random()-0.5)*512;
 			// let z = (Math.random()-0.5)*512;
 			let x = (Math.random()-0.5)*128;
-			let z = -(Math.random())*512;
+			let z = -(Math.random())*16112;
 			this.treePositions.push(glMatrix.vec3.clone([x, 0, z]));
 		}
 		this.animate();
@@ -225,7 +224,7 @@ class Game {
 		// Renders Trees
 		this.quad.setCamera(viewMatrix, screenMatrix);
 		this.quad.setTexture(this.sheetTexture);
-		for (let i = 0; i < 100; i++) {
+		for (let i = 0; i < 1000; i++) {
 			this.quad.renderBillboard(glMatrix.vec3.transformMat4(glMatrix.vec3.create(), this.treePositions[i], cameraMatrix), 31.5, 48, 34.0, 0, whiteColor);
 		}
 
